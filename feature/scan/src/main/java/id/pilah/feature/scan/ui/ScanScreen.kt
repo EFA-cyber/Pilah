@@ -22,7 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import id.pilah.feature.scan.ScanPhase
+import id.pilah.feature.scan.ScanPipelinePhase
 import id.pilah.feature.scan.ScanUiState
 import id.pilah.feature.scan.ScanViewModel
 
@@ -59,48 +59,69 @@ private fun ScanContent(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = when (uiState.phase) {
-                    ScanPhase.SCANNING -> "Memindai file..."
-                    ScanPhase.HASHING -> "Menganalisis duplikat..."
-                    ScanPhase.DONE -> "Pemindaian selesai"
-                },
-                style = MaterialTheme.typography.titleLarge,
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            when (uiState.phase) {
-                ScanPhase.SCANNING -> {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("${uiState.filesScanned} file ditemukan")
-                }
-                ScanPhase.HASHING -> {
-                    val fraction = if (uiState.filesToHash > 0) {
-                        uiState.filesHashed.toFloat() / uiState.filesToHash
-                    } else {
-                        0f
-                    }
-                    LinearProgressIndicator(
-                        progress = { fraction },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("${uiState.filesHashed} dari ${uiState.filesToHash} file dianalisis")
-                }
-                ScanPhase.DONE -> {
-                    Text("${uiState.filesScanned} file siap untuk ditinjau")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
             if (uiState.isDone) {
+                Text(
+                    text = "Pemindaian selesai",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text("${uiState.totalFiles} file siap untuk ditinjau")
+
+                Spacer(modifier = Modifier.height(32.dp))
+
                 Button(onClick = onLanjut) {
                     Text("Lanjut")
                 }
             } else {
+                Text(
+                    text = when (uiState.phase) {
+                        ScanPipelinePhase.SCANNING -> "Memindai file..."
+                        ScanPipelinePhase.HASHING -> "Menganalisis duplikat..."
+                        ScanPipelinePhase.CLASSIFYING -> "Mengklasifikasikan file..."
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                when (uiState.phase) {
+                    ScanPipelinePhase.SCANNING -> {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("${uiState.filesScanned} file ditemukan")
+                    }
+                    ScanPipelinePhase.HASHING -> {
+                        val fraction = if (uiState.filesToHash > 0) {
+                            uiState.filesHashed.toFloat() / uiState.filesToHash
+                        } else {
+                            0f
+                        }
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("${uiState.filesHashed} dari ${uiState.filesToHash} file dianalisis")
+                    }
+                    ScanPipelinePhase.CLASSIFYING -> {
+                        val fraction = if (uiState.totalFiles > 0) {
+                            uiState.filesClassified.toFloat() / uiState.totalFiles
+                        } else {
+                            0f
+                        }
+                        LinearProgressIndicator(
+                            progress = { fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("${uiState.filesClassified} dari ${uiState.totalFiles} file diklasifikasikan")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
                 OutlinedButton(onClick = onBatal) {
                     Text("Batal")
                 }

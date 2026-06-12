@@ -9,6 +9,7 @@ import androidx.work.WorkManager
 import androidx.work.getWorkInfosForUniqueWorkFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import id.pilah.feature.classification.ClassificationWorker
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,13 +25,22 @@ class ScanViewModel @Inject constructor(
 
     val uiState: StateFlow<ScanUiState> = workManager
         .getWorkInfosForUniqueWorkFlow(ScanWorker.WORK_NAME)
-        .map { infos -> infos.firstOrNull().toScanUiState() }
+        .map { infos -> infos.toScanUiState() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanUiState())
 
-    /** Memulai sesi Smart Scan baru jika belum berjalan. */
+    /** Memulai sesi Smart Scan baru jika belum berjalan, dilanjutkan otomatis dengan klasifikasi rule engine. */
     fun startScan() {
-        val request = OneTimeWorkRequestBuilder<ScanWorker>().build()
-        workManager.enqueueUniqueWork(ScanWorker.WORK_NAME, ExistingWorkPolicy.KEEP, request)
+        val scanRequest = OneTimeWorkRequestBuilder<ScanWorker>()
+            .addTag(ScanWorker.TAG)
+            .build()
+        val classificationRequest = OneTimeWorkRequestBuilder<ClassificationWorker>()
+            .addTag(ClassificationWorker.TAG)
+            .build()
+
+        workManager
+            .beginUniqueWork(ScanWorker.WORK_NAME, ExistingWorkPolicy.KEEP, scanRequest)
+            .then(classificationRequest)
+            .enqueue()
     }
 
     /** Membatalkan sesi Smart Scan yang sedang berjalan. */

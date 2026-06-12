@@ -73,7 +73,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 |---|---|---|---|
 | 0 | Setup Proyek & Fondasi | ~1 minggu | ✅ Selesai (scaffold) |
 | 1 | Smart Scan | ~2 minggu | ✅ Selesai (implementasi awal) |
-| 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu | |
+| 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | |
 | 4 | Auto-Foldering & Karantina | ~2 minggu | |
 | 5 | Dashboard Penyimpanan | ~1 minggu | |
@@ -112,7 +112,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 
 > **Catatan:** `last_opened` tetap `null` (lihat keterbatasan §6); deteksi pola folder sumber (WhatsApp/Download/DCIM) & throttling hashing berbasis baterai akan disempurnakan bersamaan rule engine di Fase 2. Build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0) — perlu dijalankan di Android Studio/CI.
 
-### Fase 2 — Klasifikasi Lokal (Rule Engine)
+### Fase 2 — Klasifikasi Lokal (Rule Engine) ✅
 Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 
 | Sinyal | Efek skor | Alasan ditampilkan |
@@ -128,6 +128,21 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 - Threshold: ≥70 → **Penting**, ≤30 → **Layak Dihapus**, 31–69 → **Ambigu** (kandidat Fase 6 / review manual).
 - Hasil disimpan ke `classifications` dengan `source = local_rule`.
 - Bobot sinyal disimpan di DataStore agar dapat disesuaikan dari koreksi pengguna (Fase 3).
+
+**Implementasi:**
+- `feature/classification` (modul baru, tanpa UI):
+  - `RuleWeights` — seluruh bobot & ambang batas (default `baseScore=50`, lihat tabel di atas), disimpan via `RuleWeightsRepository`/`DefaultRuleWeightsRepository` (DataStore Preferences, nama store `rule_weights`).
+  - `RuleEngine`/`DefaultRuleEngine` — fungsi murni `classify(FileItem, RuleContext, RuleWeights) -> ClassificationResult` (skor + `FileCategory` + alasan); sinyal "Foto Kenangan" hanya berlaku bila tidak ada sinyal negatif lain yang cocok.
+  - `RuleContext` — sinyal lintas-file yang dihitung sekali per sesi (`duplicateOfOriginalName`, `installedApkPaths`, `blurVariance`) oleh `DefaultClassificationRepository.buildContext()`.
+  - `BlurDetector`/`LaplacianBlurDetector` — deteksi buram via downsample + varians Laplacian 3x3.
+  - `InstalledPackagesProvider`/`DefaultInstalledPackagesProvider` — cek APK terinstal via `PackageManager` (memanfaatkan `MANAGE_EXTERNAL_STORAGE`, tanpa `QUERY_ALL_PACKAGES`).
+  - `ClassificationRepository`/`DefaultClassificationRepository` — `classifyAll()` mengklasifikasikan seluruh `files`, menyimpan ke `classifications` (`source = LOCAL_RULE`), emit `ClassificationProgress` real-time.
+  - `ClassificationWorker` (`@HiltWorker`, `CoroutineWorker`, tag `"classification"`) — jalankan `classifyAll()` di background.
+  - `di/ClassificationModule.kt` — binding Hilt untuk kelima interface di atas.
+  - Unit test `DefaultRuleEngineTest` — meliputi kasus default/Ambigu, duplikat, nama penting, foto kenangan (dengan & tanpa sinyal negatif), foto buram, screenshot lama, unduhan lama, APK terinstal.
+- `feature/scan` kini meng-chain `ScanWorker` → `ClassificationWorker` dalam satu `beginUniqueWork(...).then(...)` (tag `"scan"`/`"classification"`). `ScanUiState`/`ScanPipelinePhase` (SCANNING/HASHING/CLASSIFYING) menampilkan progres klasifikasi setelah scan selesai; `ui/ScanScreen.kt` menambahkan progress bar klasifikasi dan ringkasan "X file siap untuk ditinjau".
+
+> **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0/1). "Terakhir dibuka" (`last_opened`) masih `null` sehingga sinyal screenshot lama/unduhan lama saat ini hanya bergantung pada usia file & lokasi folder.
 
 ### Fase 3 — Tinjau & Koreksi (Review UI)
 - Layar dua tumpukan (Penting / Layak Dihapus) — card berisi thumbnail, nama, ukuran, alasan, usulan folder tujuan.

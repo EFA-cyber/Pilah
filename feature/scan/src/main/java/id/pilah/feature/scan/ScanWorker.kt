@@ -30,6 +30,7 @@ class ScanWorker @AssistedInject constructor(
 
     companion object {
         const val WORK_NAME = "smart_scan"
+        const val TAG = "scan"
         const val KEY_PHASE = "phase"
         const val KEY_FILES_SCANNED = "files_scanned"
         const val KEY_FILES_HASHED = "files_hashed"
