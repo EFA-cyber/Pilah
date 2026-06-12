@@ -4,6 +4,8 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import id.pilah.core.datastore.ApiKeyRepository
+import id.pilah.core.datastore.DefaultApiKeyRepository
 import id.pilah.core.datastore.DefaultUserPreferencesRepository
 import id.pilah.core.datastore.UserPreferencesRepository
 
@@ -13,4 +15,7 @@ abstract class DatastoreModule {
 
     @Binds
     abstract fun bindUserPreferencesRepository(impl: DefaultUserPreferencesRepository): UserPreferencesRepository
+
+    @Binds
+    abstract fun bindApiKeyRepository(impl: DefaultApiKeyRepository): ApiKeyRepository
 }

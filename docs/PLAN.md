@@ -77,7 +77,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 | 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 4 | Auto-Foldering & Karantina | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 5 | Dashboard Penyimpanan | ~1 minggu | ✅ Selesai (implementasi awal) |
-| 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu | |
+| 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu | ✅ Selesai (implementasi awal) |
 | 7 | Testing, Performa, Rilis | ~2 minggu | |
 
 **Total MVP penuh:** ~14–16 minggu. Jika Fase 6 ditunda ke v1.1, MVP inti (Fase 0–5 + 7) ≈ 10–12 minggu.
@@ -223,7 +223,7 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 
 > **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0–4). Penggunaan API chart Vico (`CartesianChartModelProducer`, `rememberCartesianChart`, `columnSeries`) belum tervalidasi end-to-end karena keterbatasan tersebut — perlu dicek render-nya di Android Studio/perangkat.
 
-### Fase 6 — Analisis Mendalam (Cloud AI, opsional)
+### Fase 6 — Analisis Mendalam (Cloud AI, opsional) ✅
 - Layar consent eksplisit (onboarding + settings) menjelaskan data yang dikirim ke cloud.
 - Hanya file kategori **Ambigu** (skor 31–69) atau dokumen `.pdf`/`.docx`/`.txt` yang diproses.
 - Ekstraksi cuplikan teks (N karakter pertama) via PdfBox-Android / parser DOCX ringan — hanya saat mode aktif.
@@ -231,6 +231,32 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 - Kontrak JSON: `{ file_id, importance_score, category, reason }`.
 - Simpan ke `classifications` dengan `source = cloud_haiku`/`cloud_sonnet` (riwayat lokal tetap ada untuk audit).
 - API key disimpan via Android Keystore (EncryptedSharedPreferences). Model bisnis (BYO key vs proxy backend) → lihat §7 (Pertanyaan Terbuka).
+
+**Implementasi:**
+- `gradle/libs.versions.toml`: tambah `kotlinx-serialization-json`, `squareup-retrofit`, `squareup-okhttp`, `jakewharton-retrofit-kotlinx-serialization`, `tomroush-pdfbox-android`, serta plugin `kotlin-serialization` (`org.jetbrains.kotlin.plugin.serialization`).
+- `core/network` (modul baru): client Claude API.
+  - `ClaudeModel` — enum `HAIKU`/`SONNET` dengan ID model (`claude-haiku-4-5-20251001`, `claude-sonnet-4-6`).
+  - `ClaudeMessageModels.kt` — DTO `@Serializable` untuk Messages API (`ClaudeMessageRequest`, `ClaudeMessage`, `ClaudeMessageResponse`, `ClaudeContentBlock`).
+  - `ClaudeApi` — interface Retrofit (`POST v1/messages`, header `x-api-key` & `anthropic-version`).
+  - `ClaudeClient`/`DefaultClaudeClient` — `sendPrompt(apiKey, model, prompt): String`, menggabungkan blok teks dari respons.
+  - `di/NetworkModule.kt` — `Provides` untuk `Json`, `OkHttpClient`, `ClaudeApi` (`baseUrl = https://api.anthropic.com/`); binding `ClaudeClient`.
+- `core/datastore`: `ApiKeyRepository`/`DefaultApiKeyRepository` — `EncryptedSharedPreferences` (`MasterKeys.AES256_GCM_SPEC`, file `secure_api_key_prefs`) untuk simpan/hapus/observe ketersediaan kunci API Claude; `observeHasApiKey()` reaktif via `callbackFlow` + `OnSharedPreferenceChangeListener`. Binding di `di/DatastoreModule.kt`. Tambah dependensi `core:common` (untuk `DispatcherProvider`).
+- `feature/classification`:
+  - `TextExtractor`/`DefaultTextExtractor` — ekstraksi cuplikan teks (maks. 2.000 karakter) untuk `.txt` (buffered reader), `.pdf` (PdfBox-Android, maks. 5 halaman), `.docx` (parser ringan `word/document.xml` via `XmlPullParser`); semua best-effort (`runCatching` → `null` jika gagal).
+  - `CloudClassifier`/`ClaudeCloudClassifier` — klasifikasi batch via Claude: batch pertama ke **Haiku**, file yang masih `AMBIGU` dieskalasi ke **Sonnet**. `ClaudeClassificationPrompt` (internal object) menyusun prompt Bahasa Indonesia + kontrak balasan JSON array; `ClaudeClassificationResponseParser` (internal object) mengurai balasan (toleran terhadap teks pembungkus), memvalidasi `file_id`/`category`, dan membatasi `importance_score` ke 0–100.
+  - `DeepAnalysisRepository`/`DefaultDeepAnalysisRepository` — `analyzeAmbiguousFiles()`: hanya berjalan jika `PrivacyMode.DEEP_ANALYSIS` aktif & kunci API tersedia; memilih file `AMBIGU` yang didukung `TextExtractor`, mengekstrak cuplikan (maks. 2.000 karakter), memanggil `CloudClassifier`, dan menyimpan hasil sebagai `Classification` baru (`source = CLOUD_HAIKU`/`CLOUD_SONNET`). Panggilan `cloudClassifier.classify(...)` dibungkus `runCatching { }.getOrDefault(emptyList())` agar kegagalan jaringan/API tidak menggagalkan worker.
+  - `DeepAnalysisWorker` (`@HiltWorker`) — menjalankan `analyzeAmbiguousFiles()`, melaporkan progres (`files_analyzed`, `skipped`).
+  - `di/ClassificationModule.kt` — binding `TextExtractor`, `CloudClassifier` → `ClaudeCloudClassifier`, `DeepAnalysisRepository`.
+  - `build.gradle.kts` — tambah plugin `kotlin-serialization`, dependensi `core:datastore`, `core:network`, `kotlinx-serialization-json`, `tomroush-pdfbox-android`.
+  - Unit test `ClaudeClassificationPromptTest`, `ClaudeClassificationResponseParserTest` — kontrak prompt (format `file_id`/`nama`/`cuplikan`, escaping kutip, pemotongan cuplikan, kontrak JSON balasan) dan parser (JSON murni, JSON terbungkus teks lain, filter `file_id`/`category` tidak valid, normalisasi kategori, pembatasan skor, balasan tanpa JSON).
+- `feature/scan`: `ScanViewModel.startScan()` — rantai WorkManager kini `ScanWorker -> ClassificationWorker -> DeepAnalysisWorker` (`beginUniqueWork(...).then(...).then(...)`).
+- `feature/dashboard`:
+  - `SettingsViewModel` — tambah `hasApiKey: StateFlow<Boolean>` (dari `ApiKeyRepository.observeHasApiKey()`), `setApiKey()`, `clearApiKey()`.
+  - `ui/SettingsScreen.kt` — saat `PrivacyMode.DEEP_ANALYSIS` aktif, tampilkan bagian "Kunci API Claude": teks consent (menjelaskan nama file + cuplikan teks file Ambigu dikirim ke Claude API, isi file lain tidak pernah dikirim), `OutlinedTextField` (password-masked) + tombol "Simpan" jika belum ada kunci, atau status "Kunci API tersimpan." + tombol "Hapus" jika sudah ada.
+- `app`:
+  - `ui/OnboardingScreen.kt` — setelah izin penyimpanan diberikan, tampilkan langkah pemilihan **Mode Privasi** (PRD §4 langkah 1) sebelum `onMulai()`; menggunakan `SettingsViewModel.privacyMode`/`setPrivacyMode` via `hiltViewModel()`. Tambah string resource `screen_onboarding_privacy_*`, `privacy_mode_*`.
+
+> **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0–5). Tambahan untuk Fase 6: (1) panggilan jaringan ke Claude API (`DefaultClaudeClient`) belum diverifikasi end-to-end; (2) ekstraksi PDF via PdfBox-Android memerlukan inisialisasi `PDFBoxResourceLoader.init(context)` dan font/resource bundling — belum tervalidasi di perangkat nyata; (3) parser DOCX ringan (`ZipFile` + `word/document.xml`) mengasumsikan struktur OOXML standar dan belum diuji terhadap berbagai file `.docx` nyata.
 
 ### Fase 7 — Testing, Performa, Rilis
 - Unit test: rule engine (skoring), repository, mapper.

@@ -5,4 +5,11 @@
     <string name="screen_onboarding_body">Biar AI yang beres-beres. Beri izin akses penyimpanan untuk memulai pemindaian.</string>
     <string name="screen_onboarding_cta">Mulai</string>
     <string name="screen_onboarding_grant_permission">Izinkan Akses Penyimpanan</string>
+
+    <string name="screen_onboarding_privacy_title">Mode Privasi</string>
+    <string name="screen_onboarding_privacy_body">Pilih bagaimana PILAH menganalisis file Anda. Anda dapat mengubah pilihan ini kapan saja di menu Pengaturan.</string>
+    <string name="privacy_mode_on_device_title">Hanya di Perangkat</string>
+    <string name="privacy_mode_on_device_description">Seluruh pemindaian dan klasifikasi berjalan secara lokal. Tidak ada data file yang dikirim ke luar perangkat.</string>
+    <string name="privacy_mode_deep_analysis_title">Analisis Mendalam</string>
+    <string name="privacy_mode_deep_analysis_description">File berkategori Ambigu dapat dikirim ke layanan Cloud AI agar klasifikasinya lebih akurat. Memerlukan kunci API.</string>
 </resources>

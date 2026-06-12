@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -21,9 +25,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,12 +47,16 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val privacyMode by viewModel.privacyMode.collectAsState()
+    val hasApiKey by viewModel.hasApiKey.collectAsState()
     val actionLog by viewModel.actionLog.collectAsState()
 
     SettingsContent(
         privacyMode = privacyMode,
+        hasApiKey = hasApiKey,
         actionLog = actionLog,
         onPrivacyModeChange = viewModel::setPrivacyMode,
+        onSaveApiKey = viewModel::setApiKey,
+        onClearApiKey = viewModel::clearApiKey,
         onKembali = onKembali,
     )
 }
@@ -51,8 +64,11 @@ fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     privacyMode: PrivacyMode,
+    hasApiKey: Boolean,
     actionLog: List<FileAction>,
     onPrivacyModeChange: (PrivacyMode) -> Unit,
+    onSaveApiKey: (String) -> Unit,
+    onClearApiKey: () -> Unit,
     onKembali: () -> Unit,
 ) {
     Scaffold(
@@ -102,6 +118,29 @@ private fun SettingsContent(
                 )
             }
             item { Spacer(modifier = Modifier.height(24.dp)) }
+            if (privacyMode == PrivacyMode.DEEP_ANALYSIS) {
+                item {
+                    Text(text = "Kunci API Claude", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Saat Analisis Mendalam aktif, nama file dan cuplikan teks dari " +
+                            "file berkategori Ambigu (PDF, DOCX, TXT) dikirim ke Claude API " +
+                            "agar dinilai ulang. Isi file lain tidak pernah dikirim ke luar " +
+                            "perangkat. Diperlukan kunci API Claude milik Anda sendiri.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                item {
+                    ApiKeySection(
+                        hasApiKey = hasApiKey,
+                        onSaveApiKey = onSaveApiKey,
+                        onClearApiKey = onClearApiKey,
+                    )
+                }
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+            }
             item {
                 Text(text = "Riwayat Aksi", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -150,6 +189,50 @@ private fun PrivacyModeOption(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ApiKeySection(
+    hasApiKey: Boolean,
+    onSaveApiKey: (String) -> Unit,
+    onClearApiKey: () -> Unit,
+) {
+    if (hasApiKey) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "Kunci API tersimpan.", style = MaterialTheme.typography.bodyMedium)
+            OutlinedButton(onClick = onClearApiKey) {
+                Text("Hapus")
+            }
+        }
+    } else {
+        var apiKeyInput by remember { mutableStateOf("") }
+        Column {
+            OutlinedTextField(
+                value = apiKeyInput,
+                onValueChange = { apiKeyInput = it },
+                label = { Text("Kunci API Claude") },
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = {
+                    onSaveApiKey(apiKeyInput)
+                    apiKeyInput = ""
+                },
+                enabled = apiKeyInput.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Simpan")
             }
         }
     }

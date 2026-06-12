@@ -10,6 +10,7 @@ import androidx.work.getWorkInfosForUniqueWorkFlow
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import id.pilah.feature.classification.ClassificationWorker
+import id.pilah.feature.classification.DeepAnalysisWorker
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +29,11 @@ class ScanViewModel @Inject constructor(
         .map { infos -> infos.toScanUiState() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanUiState())
 
-    /** Memulai sesi Smart Scan baru jika belum berjalan, dilanjutkan otomatis dengan klasifikasi rule engine. */
+    /**
+     * Memulai sesi Smart Scan baru jika belum berjalan, dilanjutkan otomatis dengan klasifikasi
+     * rule engine lalu Analisis Mendalam (file Ambigu, hanya berjalan jika mode privasi
+     * Analisis Mendalam aktif & kunci API tersedia — lihat [DeepAnalysisWorker]).
+     */
     fun startScan() {
         val scanRequest = OneTimeWorkRequestBuilder<ScanWorker>()
             .addTag(ScanWorker.TAG)
@@ -36,10 +41,14 @@ class ScanViewModel @Inject constructor(
         val classificationRequest = OneTimeWorkRequestBuilder<ClassificationWorker>()
             .addTag(ClassificationWorker.TAG)
             .build()
+        val deepAnalysisRequest = OneTimeWorkRequestBuilder<DeepAnalysisWorker>()
+            .addTag(DeepAnalysisWorker.TAG)
+            .build()
 
         workManager
             .beginUniqueWork(ScanWorker.WORK_NAME, ExistingWorkPolicy.KEEP, scanRequest)
             .then(classificationRequest)
+            .then(deepAnalysisRequest)
             .enqueue()
     }
 
