@@ -8,4 +8,5 @@ enum class PilahDestination(val route: String) {
     FOLDERING("foldering"),
     DASHBOARD("dashboard"),
     QUARANTINE("quarantine"),
+    SETTINGS("settings"),
 }

@@ -5,8 +5,4 @@
     <string name="screen_onboarding_body">Biar AI yang beres-beres. Beri izin akses penyimpanan untuk memulai pemindaian.</string>
     <string name="screen_onboarding_cta">Mulai</string>
     <string name="screen_onboarding_grant_permission">Izinkan Akses Penyimpanan</string>
-
-    <string name="screen_dashboard_title">Dashboard</string>
-    <string name="screen_dashboard_body">Visualisasi penyimpanan akan tersedia di Fase 5.</string>
-    <string name="screen_dashboard_quarantine_cta">Buka Karantina</string>
 </resources>

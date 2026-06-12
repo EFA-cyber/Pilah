@@ -76,7 +76,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 | 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 4 | Auto-Foldering & Karantina | ~2 minggu | ✅ Selesai (implementasi awal) |
-| 5 | Dashboard Penyimpanan | ~1 minggu | |
+| 5 | Dashboard Penyimpanan | ~1 minggu | ✅ Selesai (implementasi awal) |
 | 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu | |
 | 7 | Testing, Performa, Rilis | ~2 minggu | |
 
@@ -197,11 +197,31 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 
 > **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0/1/2/3). `FileMover` belum memakai Storage Access Framework — saat ini hanya `java.io.File` (`renameTo`/`copyTo`), cukup untuk volume yang dapat diakses via `MANAGE_EXTERNAL_STORAGE`; SAF dapat ditambahkan jika diperlukan untuk akses lintas-app.
 
-### Fase 5 — Dashboard Penyimpanan
+### Fase 5 — Dashboard Penyimpanan ✅
 - Pie/bar chart penggunaan storage per kategori (Vico).
 - Riwayat sesi "Rapikan Sekarang" (tanggal, ruang dihemat).
 - Counter total ruang dihemat sejak instalasi (agregat dari `actions`/`quarantine`).
 - Halaman Pengaturan: toggle mode privasi, kelola folder kustom, lihat log `actions`.
+
+**Implementasi:**
+- `core/model`: `PrivacyMode` (`ON_DEVICE`/`DEEP_ANALYSIS`) — konsep lintas-fitur baru, dipakai Halaman Pengaturan & menjadi gate untuk Analisis Mendalam (Fase 6).
+- `core/datastore` (modul baru): `UserPreferencesRepository`/`DefaultUserPreferencesRepository` — DataStore Preferences (`user_preferences`), `observePrivacyMode()`/`setPrivacyMode()`, default `ON_DEVICE`; `di/DatastoreModule.kt` (binding Hilt). Juga menambahkan dependensi `androidx.security:security-crypto` (disiapkan untuk `ApiKeyRepository` di Fase 6).
+- `feature/dashboard` (modul baru):
+  - `CategoryUsage`, `CleanupSession`, `SavingsSummary` — model agregat tampilan.
+  - `StorageUsageAggregator` — fungsi murni `aggregate(files, classifications, corrections) -> List<CategoryUsage>`: kategori efektif sama seperti Fase 3/4 (koreksi pengguna terbaru menggantikan klasifikasi AI), dikelompokkan & diurutkan menurun ukuran total.
+  - `SavingsCalculator` — fungsi murni `calculate(files, actions, activeQuarantine) -> SavingsSummary`: `savedBytes` dari file ber-`actionType = PURGE` (set agar tidak dobel), `potentialBytes` dari entri `quarantine` `ACTIVE`.
+  - `CleanupHistoryAggregator` — fungsi murni `aggregate(files, actions) -> List<CleanupSession>`: kelompokkan aksi `MOVE`/`QUARANTINE` per tanggal eksekusi (zona waktu lokal), urut menurun tanggal.
+  - `DashboardRepository`/`DefaultDashboardRepository` — `observeStorageByCategory()`, `observeSavings()`, `observeCleanupHistory()`, `observeActionLog()`; masing-masing `combine` Flow dari DAO terkait lalu memanggil aggregator murni di atas (`flowOn(dispatchers.default)`).
+  - `DashboardViewModel` — expose ketiga `StateFlow` agregat ke `DashboardScreen`.
+  - `SettingsViewModel` — expose `privacyMode: StateFlow<PrivacyMode>` (dari `UserPreferencesRepository`), `actionLog: StateFlow<List<FileAction>>` (dari `DashboardRepository`), dan `setPrivacyMode()`.
+  - `di/DashboardModule.kt` — binding Hilt `DashboardRepository` → `DefaultDashboardRepository`.
+  - `ui/FormatUtils.kt` — `formatFileSize` (B/KB/MB/GB), `formatDate`, `formatInstant`, serta label Bahasa Indonesia untuk `FileCategory` dan `ActionType`.
+  - `ui/DashboardScreen.kt` — kartu "Total ruang dihemat" + potensi hemat dari Karantina, bar chart Vico (`CartesianChartHost`) penggunaan per kategori, daftar kategori (jumlah file & ukuran), serta riwayat sesi "Rapikan Sekarang"; tombol "Buka Karantina" dan "Pengaturan".
+  - `ui/SettingsScreen.kt` — pilihan mode privasi (Hanya di Perangkat / Analisis Mendalam) dengan penjelasan dampak privasi masing-masing, serta daftar riwayat aksi (`actionLog`) dengan nama file, jenis aksi, dan waktu.
+  - Unit test `StorageUsageAggregatorTest`, `SavingsCalculatorTest`, `CleanupHistoryAggregatorTest` — meliputi pengelompokan kategori, koreksi pengguna, pengurutan, perhitungan hemat (termasuk anti-dobel-hitung), dan pengelompokan riwayat per tanggal.
+- `app`: `PilahNavHost` memakai `DashboardScreen`/`SettingsScreen` dari `feature/dashboard`, menambah rute `SETTINGS` (`Dashboard → Pengaturan`, `Dashboard → Karantina`); placeholder lama `app/.../ui/DashboardScreen.kt` dan `app/.../ui/PlaceholderScreen.kt` (sudah tidak terpakai) dihapus beserta string resource `screen_dashboard_*`.
+
+> **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0–4). Penggunaan API chart Vico (`CartesianChartModelProducer`, `rememberCartesianChart`, `columnSeries`) belum tervalidasi end-to-end karena keterbatasan tersebut — perlu dicek render-nya di Android Studio/perangkat.
 
 ### Fase 6 — Analisis Mendalam (Cloud AI, opsional)
 - Layar consent eksplisit (onboarding + settings) menjelaskan data yang dikirim ke cloud.
