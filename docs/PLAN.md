@@ -74,7 +74,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 | 0 | Setup Proyek & Fondasi | ~1 minggu | ✅ Selesai (scaffold) |
 | 1 | Smart Scan | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu | ✅ Selesai (implementasi awal) |
-| 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | |
+| 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 4 | Auto-Foldering & Karantina | ~2 minggu | |
 | 5 | Dashboard Penyimpanan | ~1 minggu | |
 | 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu | |
@@ -144,11 +144,28 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 
 > **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0/1). "Terakhir dibuka" (`last_opened`) masih `null` sehingga sinyal screenshot lama/unduhan lama saat ini hanya bergantung pada usia file & lokasi folder.
 
-### Fase 3 — Tinjau & Koreksi (Review UI)
+### Fase 3 — Tinjau & Koreksi (Review UI) ✅
 - Layar dua tumpukan (Penting / Layak Dihapus) — card berisi thumbnail, nama, ukuran, alasan, usulan folder tujuan.
 - Gestur swipe untuk pindah kategori → tulis ke `user_corrections` (ai_category vs user_category).
 - Penyesuaian bobot rule engine secara heuristik berdasarkan akumulasi koreksi (bukan training model di MVP).
 - Bottom sheet detail file: preview, metadata lengkap, riwayat klasifikasi.
+
+**Implementasi:**
+- `feature/review` (modul baru):
+  - `ReviewItem` — gabungan `FileItem` + `Classification` + `effectiveCategory` (kategori tampil = koreksi pengguna terbaru jika ada, fallback ke klasifikasi terbaru) + `suggestedFolder`.
+  - `FolderSuggester` — usulan folder tujuan berdasarkan kategori & jenis file: `LAYAK_DIHAPUS` → "Karantina", `AMBIGU` → tanpa usulan, `PENTING` → "Foto Kenangan" (media di DCIM), "Dokumen Penting" (pdf/doc/docx), "Kerja & Bisnis" (xls/xlsx/ppt/pptx/csv), atau "Arsip" (lainnya).
+  - `RuleWeightsAdjuster` — heuristik penyesuaian `RuleWeights`: setiap koreksi pengguna memetakan `Classification.reason` ke bobot sinyal terkait (duplikat, screenshot lama, APK terinstal, unduhan lama, foto buram, nama dokumen penting, foto kenangan) dan menggesernya ±2 menuju/menjauhi nol sesuai arah koreksi (`LAYAK_DIHAPUS` → `AMBIGU` → `PENTING`); alasan tanpa sinyal khusus menyesuaikan `baseScore`.
+  - `ReviewRepository`/`DefaultReviewRepository` — gabungkan `files`, klasifikasi terbaru per file, dan `user_corrections` terbaru menjadi daftar `ReviewItem` per kategori (Penting diurutkan menurun skor, Layak Dihapus menurun kepentingannya); `correctCategory()` menulis baris baru ke `user_corrections` lalu memanggil `RuleWeightsAdjuster.adjust()`.
+  - `ReviewViewModel` — expose `penting`/`layakDihapus` sebagai `StateFlow<List<ReviewItem>>`, `history(fileId)` untuk riwayat klasifikasi, dan `correctCategory()`.
+  - `di/ReviewModule.kt` — binding Hilt `ReviewRepository` → `DefaultReviewRepository`.
+  - `ui/ReviewScreen.kt` — `TabRow` dua tab ("Penting (n)" / "Layak Dihapus (n)"), `LazyColumn` kartu yang bisa di-swipe, tombol "Lanjut" ke Dashboard, status kosong per tab.
+  - `ui/ReviewCard.kt` — `SwipeableReviewCard` (Material3 `SwipeToDismissBox`, kedua arah swipe memindahkan file ke kategori target dengan label latar warna) + `ReviewCard` (badge tipe file, nama, ukuran, usulan folder, alasan, skor).
+  - `ui/FileDetailSheet.kt` — `ModalBottomSheet` berisi pratinjau gambar (decode bitmap ter-sampling via `BitmapFactory`), metadata lengkap (lokasi, ukuran, tipe, dibuat, terakhir dibuka, usulan folder), dan riwayat klasifikasi (`observeHistory`).
+  - `ui/FormatUtils.kt` — format tanggal/ukuran file & label kategori Bahasa Indonesia.
+  - Unit test `FolderSuggesterTest` & `RuleWeightsAdjusterTest` — meliputi seluruh cabang usulan folder dan penyesuaian bobot (penguatan/pelemahan sinyal positif & negatif, koreksi ke kategori sama = no-op, clamping di batas nol).
+- `app`: `PilahNavHost` kini memakai `ReviewScreen` dari `feature/review` (placeholder lama di `app/.../ui/ReviewScreen.kt` dihapus beserta string resource yang tak terpakai).
+
+> **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0/1/2). File berkategori **Ambigu** belum ditampilkan di tumpukan manapun — akan ditangani Analisis Mendalam (Fase 6).
 
 ### Fase 4 — Auto-Foldering & Karantina
 - Usulan struktur folder: `Dokumen Penting/`, `Foto Kenangan/`, `Kerja & Bisnis/`, `Arsip/`, `Karantina/` (root dapat dikustomisasi).

@@ -6,9 +6,6 @@
     <string name="screen_onboarding_cta">Mulai</string>
     <string name="screen_onboarding_grant_permission">Izinkan Akses Penyimpanan</string>
 
-    <string name="screen_review_title">Tinjau Hasil</string>
-    <string name="screen_review_body">Tumpukan Penting &amp; Layak Dihapus akan tersedia di Fase 2-3.</string>
-
     <string name="screen_dashboard_title">Dashboard</string>
     <string name="screen_dashboard_body">Visualisasi penyimpanan akan tersedia di Fase 5.</string>
     <string name="screen_dashboard_quarantine_cta">Buka Karantina</string>
@@ -16,6 +13,5 @@
     <string name="screen_quarantine_title">Karantina</string>
     <string name="screen_quarantine_body">Daftar file karantina akan tersedia di Fase 4.</string>
 
-    <string name="action_next">Lanjut</string>
     <string name="action_back">Kembali</string>
 </resources>
