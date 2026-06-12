@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -28,3 +29,10 @@ jobs:
 
       - name: Assemble debug
         run: ./gradlew assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilah-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
