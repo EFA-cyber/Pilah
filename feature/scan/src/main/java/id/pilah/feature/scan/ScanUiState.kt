@@ -29,10 +29,17 @@ internal fun List<WorkInfo>.toScanUiState(): ScanUiState {
     val isFailed = any { it.state == WorkInfo.State.FAILED || it.state == WorkInfo.State.CANCELLED }
 
     if (classificationInfo != null && classificationInfo.state != WorkInfo.State.BLOCKED) {
+        // Progress WorkManager dikosongkan begitu work mencapai state akhir, jadi setelah
+        // SUCCEEDED hitungan akhir harus dibaca dari outputData, bukan progress.
+        val classificationData = if (classificationInfo.state == WorkInfo.State.SUCCEEDED) {
+            classificationInfo.outputData
+        } else {
+            classificationInfo.progress
+        }
         return ScanUiState(
             phase = ScanPipelinePhase.CLASSIFYING,
-            filesClassified = classificationInfo.progress.getInt(ClassificationWorker.KEY_FILES_CLASSIFIED, 0),
-            totalFiles = classificationInfo.progress.getInt(ClassificationWorker.KEY_TOTAL_FILES, 0),
+            filesClassified = classificationData.getInt(ClassificationWorker.KEY_FILES_CLASSIFIED, 0),
+            totalFiles = classificationData.getInt(ClassificationWorker.KEY_TOTAL_FILES, 0),
             isDone = isDone,
             isFailed = isFailed,
         )

@@ -17,8 +17,12 @@ class ClassificationWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        classificationRepository.classifyAll().collect { progress -> setProgress(progress.toWorkData()) }
-        return Result.success()
+        var lastProgress = ClassificationProgress()
+        classificationRepository.classifyAll().collect { progress ->
+            lastProgress = progress
+            setProgress(progress.toWorkData())
+        }
+        return Result.success(lastProgress.toWorkData())
     }
 
     private fun ClassificationProgress.toWorkData() = workDataOf(
