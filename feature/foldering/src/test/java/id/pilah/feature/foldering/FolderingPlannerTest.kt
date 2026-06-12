@@ -78,6 +78,38 @@ class FolderingPlannerTest {
     }
 
     @Test
+    fun `dua file dengan nama sama ke folder tujuan yang sama diberi suffix unik`() {
+        val files = listOf(
+            fileItem(id = 30, path = "/storage/emulated/0/DCIM/Camera/IMG_0001.jpg", name = "IMG_0001.jpg", type = "jpg"),
+            fileItem(id = 31, path = "/storage/emulated/0/WhatsApp/Media/IMG_0001.jpg", name = "IMG_0001.jpg", type = "jpg"),
+        )
+        val categories = mapOf(30L to FileCategory.LAYAK_DIHAPUS, 31L to FileCategory.LAYAK_DIHAPUS)
+
+        val plan = FolderingPlanner.plan(files, categories)
+
+        val targetPaths = plan.items.map { it.targetPath }
+        assertEquals(2, targetPaths.distinct().size)
+        assertTrue(targetPaths.contains("/storage/emulated/0/Karantina/IMG_0001.jpg"))
+        assertTrue(targetPaths.contains("/storage/emulated/0/Karantina/IMG_0001 (1).jpg"))
+    }
+
+    @Test
+    fun `file yang akan dipindah tidak bertabrakan dengan path file lain yang sudah ada di folder tujuan`() {
+        val files = listOf(
+            fileItem(id = 40, path = "/storage/emulated/0/Karantina/IMG_0002.jpg", name = "IMG_0002.jpg", type = "jpg"),
+            fileItem(id = 41, path = "/storage/emulated/0/DCIM/Camera/IMG_0002.jpg", name = "IMG_0002.jpg", type = "jpg"),
+        )
+        val categories = mapOf(40L to FileCategory.LAYAK_DIHAPUS, 41L to FileCategory.LAYAK_DIHAPUS)
+
+        val plan = FolderingPlanner.plan(files, categories)
+
+        // File 40 sudah di Karantina, jadi tidak masuk rencana; file 41 harus dapat nama baru.
+        val item = plan.items.single()
+        assertEquals(41L, item.file.id)
+        assertEquals("/storage/emulated/0/Karantina/IMG_0002 (1).jpg", item.targetPath)
+    }
+
+    @Test
     fun `foto penting di kartu SD direncanakan pindah ke Foto Kenangan di volume yang sama`() {
         val file = fileItem(id = 20, path = "/storage/ABCD-1234/DCIM/Camera/liburan.jpg", name = "liburan.jpg", type = "jpg")
 
