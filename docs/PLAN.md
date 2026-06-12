@@ -69,25 +69,27 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 
 ## 5. Roadmap Fase
 
-| Fase | Fokus | Estimasi |
-|---|---|---|
-| 0 | Setup Proyek & Fondasi | ~1 minggu |
-| 1 | Smart Scan | ~2 minggu |
-| 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu |
-| 3 | Tinjau & Koreksi (Review UI) | ~2 minggu |
-| 4 | Auto-Foldering & Karantina | ~2 minggu |
-| 5 | Dashboard Penyimpanan | ~1 minggu |
-| 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu |
-| 7 | Testing, Performa, Rilis | ~2 minggu |
+| Fase | Fokus | Estimasi | Status |
+|---|---|---|---|
+| 0 | Setup Proyek & Fondasi | ~1 minggu | ✅ Selesai (scaffold) |
+| 1 | Smart Scan | ~2 minggu | |
+| 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu | |
+| 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | |
+| 4 | Auto-Foldering & Karantina | ~2 minggu | |
+| 5 | Dashboard Penyimpanan | ~1 minggu | |
+| 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu | |
+| 7 | Testing, Performa, Rilis | ~2 minggu | |
 
 **Total MVP penuh:** ~14–16 minggu. Jika Fase 6 ditunda ke v1.1, MVP inti (Fase 0–5 + 7) ≈ 10–12 minggu.
 
-### Fase 0 — Setup Proyek & Fondasi
-- Inisialisasi proyek Gradle (version catalog), modul `core/database`, `core/designsystem`, `core/common`, `core/model`.
-- Setup Room DB sesuai §4 (5 entity + DAO + migration awal).
-- Setup tema Compose & typography sesuai PRD §7.3: Sans = `Geist Mono`, Serif = `serif`, Mono = `JetBrains Mono` (font Geist Mono & JetBrains Mono di-bundle sebagai font resource).
-- Setup Compose Navigation + Hilt DI graph.
-- CI dasar (GitHub Actions): build, lint, unit test.
+### Fase 0 — Setup Proyek & Fondasi ✅
+- Proyek Gradle multi-modul (version catalog `gradle/libs.versions.toml`): `app`, `core:model`, `core:common`, `core:database`, `core:designsystem`.
+- Room DB sesuai §4 — 5 entity (`FileEntity`, `ClassificationEntity`, `ActionEntity`, `QuarantineEntity`, `UserCorrectionEntity`) + DAO + `Converters` (Instant) + mapper entity↔domain model, versi awal (v1).
+- Tema Compose & typography sesuai PRD §7.3: `PilahFonts.sans` (Geist Mono), `.serif`, `.mono` (JetBrains Mono) — font di-bundle sebagai resource TTF di `core/designsystem/src/main/res/font/`, dipetakan ke `PilahTypography` (Material3) + `PilahTypographyExtra.mono`.
+- Compose Navigation (`PilahNavHost`) dengan 5 rute placeholder sesuai alur PRD §4 (Onboarding → Pindai → Tinjau Hasil → Dashboard → Karantina) + Hilt DI graph (`PilahApplication`, `MainActivity`, `DatabaseModule`, `CommonModule`).
+- CI dasar (`.github/workflows/android-ci.yml`): lint, unit test, assemble debug via GitHub Actions.
+
+> **Catatan:** build belum diverifikasi di sandbox ini karena tidak ada Android SDK terpasang dan repository Maven Google (`dl.google.com`, sumber Android Gradle Plugin/AndroidX) diblokir oleh kebijakan jaringan. Verifikasi `./gradlew assembleDebug` perlu dijalankan di Android Studio / CI (sudah disiapkan di GitHub Actions).
 
 ### Fase 1 — Smart Scan
 - Layar onboarding: edukasi kebutuhan akses penuh storage + request `MANAGE_EXTERNAL_STORAGE`.

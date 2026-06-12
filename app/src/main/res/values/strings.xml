@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">PILAH</string>
+
+    <string name="screen_onboarding_title">Selamat datang di PILAH</string>
+    <string name="screen_onboarding_body">Biar AI yang beres-beres. Beri izin akses penyimpanan untuk memulai pemindaian.</string>
+    <string name="screen_onboarding_cta">Mulai</string>
+
+    <string name="screen_scan_title">Pindai Cerdas</string>
+    <string name="screen_scan_body">Fitur pemindaian akan tersedia di Fase 1.</string>
+
+    <string name="screen_review_title">Tinjau Hasil</string>
+    <string name="screen_review_body">Tumpukan Penting &amp; Layak Dihapus akan tersedia di Fase 2-3.</string>
+
+    <string name="screen_dashboard_title">Dashboard</string>
+    <string name="screen_dashboard_body">Visualisasi penyimpanan akan tersedia di Fase 5.</string>
+    <string name="screen_dashboard_quarantine_cta">Buka Karantina</string>
+
+    <string name="screen_quarantine_title">Karantina</string>
+    <string name="screen_quarantine_body">Daftar file karantina akan tersedia di Fase 4.</string>
+
+    <string name="action_next">Lanjut</string>
+    <string name="action_back">Kembali</string>
+</resources>
