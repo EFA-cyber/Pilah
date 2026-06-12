@@ -6,6 +6,11 @@ build/
 # Local configuration
 local.properties
 
+# Release signing (lihat keystore.properties.example)
+keystore.properties
+*.jks
+*.keystore
+
 # Android Studio / IntelliJ
 .idea/
 *.iml

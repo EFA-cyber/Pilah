@@ -78,7 +78,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 | 4 | Auto-Foldering & Karantina | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 5 | Dashboard Penyimpanan | ~1 minggu | ✅ Selesai (implementasi awal) |
 | 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu | ✅ Selesai (implementasi awal) |
-| 7 | Testing, Performa, Rilis | ~2 minggu | |
+| 7 | Testing, Performa, Rilis | ~2 minggu | ✅ Selesai (implementasi awal) |
 
 **Total MVP penuh:** ~14–16 minggu. Jika Fase 6 ditunda ke v1.1, MVP inti (Fase 0–5 + 7) ≈ 10–12 minggu.
 
@@ -258,13 +258,29 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 
 > **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0–5). Tambahan untuk Fase 6: (1) panggilan jaringan ke Claude API (`DefaultClaudeClient`) belum diverifikasi end-to-end; (2) ekstraksi PDF via PdfBox-Android memerlukan inisialisasi `PDFBoxResourceLoader.init(context)` dan font/resource bundling — belum tervalidasi di perangkat nyata; (3) parser DOCX ringan (`ZipFile` + `word/document.xml`) mengasumsikan struktur OOXML standar dan belum diuji terhadap berbagai file `.docx` nyata.
 
-### Fase 7 — Testing, Performa, Rilis
+### Fase 7 — Testing, Performa, Rilis ✅
 - Unit test: rule engine (skoring), repository, mapper.
 - Instrumented test: migrasi Room, file scanner pada storage simulasi.
 - UI test (Compose): alur onboarding → scan → review → eksekusi.
 - Profiling pada perangkat RAM 3–4GB dengan >10.000 file (paging daftar, baseline profile).
 - Audit lokalisasi Bahasa Indonesia & audit privasi (pastikan tidak ada network call saat mode On-Device).
 - Persiapan rilis: signing config, draf listing Play Store.
+
+**Implementasi:**
+- `core/database`: `EntityMappersTest` (modul baru di `src/test`) — uji round-trip `toEntity()`/`toDomain()` untuk kelima pasangan entity↔domain (`FileEntity`/`FileItem`, `ClassificationEntity`/`Classification`, `ActionEntity`/`FileAction`, `QuarantineEntity`/`QuarantineEntry`, `UserCorrectionEntity`/`UserCorrection`), memastikan tidak ada field yang hilang/tertukar saat mapper berubah.
+- Rule engine (`DefaultRuleEngineTest`, Fase 2) sudah mencakup skoring untuk seluruh sinyal (`duplikat`, `foto kenangan`, `buram`, `screenshot/unduhan lama`, `APK terinstal`, `dokumen penting`) beserta kombinasi & ambang batas kategori — tidak ada gap baru yang ditemukan.
+- **Audit privasi**: ditelusuri seluruh pemakaian `ClaudeClient`/`CloudClassifier`/`core:network` — hanya direferensikan oleh `ClaudeCloudClassifier` (dipakai `DefaultDeepAnalysisRepository`), yang mengembalikan lebih awal jika `PrivacyMode != DEEP_ANALYSIS` atau kunci API kosong. `DeepAnalysisWorker` selalu di-enqueue oleh `ScanViewModel`, tetapi panggilan jaringan hanya terjadi di dalam repository yang sudah digate; `NetworkModule` hanya menyediakan `OkHttpClient`/`Retrofit`/`ClaudeApi` secara lazy (tanpa interceptor/panggilan saat startup). Tidak ditemukan pemakaian OkHttp/Retrofit/`HttpURLConnection` lain di luar `core/network`. **Hasil: PASS** — tidak ada network call pada mode On-Device.
+- **Audit lokalisasi**: ditelusuri seluruh `strings.xml` dan literal teks pada Composable `Text(...)` di semua modul `feature/*` dan `app` — seluruhnya Bahasa Indonesia. **Hasil: PASS**.
+- **Persiapan rilis**:
+  - `app/build.gradle.kts` — skema `signingConfigs.release` opsional yang membaca `keystore.properties` (root proyek, di-gitignore) bila ada; jika tidak ada, build `release` tetap berjalan tanpa signing config khusus. Ditambahkan `keystore.properties.example` sebagai templat (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`).
+  - `.gitignore` — tambah `keystore.properties`, `*.jks`, `*.keystore`.
+  - `docs/PLAY_STORE_LISTING.md` (baru) — draf listing Play Store: deskripsi singkat/lengkap (Bahasa Indonesia), daftar aset grafis yang masih TODO, klasifikasi konten, justifikasi izin (`MANAGE_EXTERNAL_STORAGE`, akses internet hanya untuk Analisis Mendalam), catatan kebijakan privasi, dan status signing/versioning.
+
+> **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0–6). Item Fase 7 yang **tidak dapat diselesaikan di sandbox** ini (memerlukan Android SDK/emulator/perangkat fisik):
+> - **Instrumented test** migrasi Room (skema masih v1 — belum ada migrasi untuk diuji; `PilahDatabaseTest` dari Fase 0 sudah menguji DAO dasar) dan file scanner pada storage simulasi.
+> - **UI test (Compose)** untuk alur Onboarding → Pindai → Tinjau Hasil → Eksekusi.
+> - **Profiling** pada perangkat RAM 3–4GB dengan >10.000 file (paging, baseline profile).
+> Ketiganya perlu dijalankan di Android Studio / CI dengan emulator atau perangkat fisik sebelum rilis.
 
 ## 6. Izin & Privasi
 
