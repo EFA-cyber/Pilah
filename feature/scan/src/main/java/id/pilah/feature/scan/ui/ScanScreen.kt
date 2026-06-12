@@ -29,6 +29,7 @@ import id.pilah.feature.scan.ScanViewModel
 @Composable
 fun ScanScreen(
     onLanjut: () -> Unit,
+    onBatal: () -> Unit,
     viewModel: ScanViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -40,7 +41,10 @@ fun ScanScreen(
     ScanContent(
         uiState = uiState,
         onLanjut = onLanjut,
-        onBatal = viewModel::cancelScan,
+        onBatal = {
+            viewModel.cancelScan()
+            onBatal()
+        },
     )
 }
 
@@ -73,6 +77,21 @@ private fun ScanContent(
 
                 Button(onClick = onLanjut) {
                     Text("Lanjut")
+                }
+            } else if (uiState.isFailed) {
+                Text(
+                    text = "Pemindaian dibatalkan atau gagal",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Text("Silakan kembali dan coba lagi.")
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(onClick = onBatal) {
+                    Text("Kembali")
                 }
             } else {
                 Text(

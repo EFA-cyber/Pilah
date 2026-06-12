@@ -19,12 +19,14 @@ data class ScanUiState(
     val filesClassified: Int = 0,
     val totalFiles: Int = 0,
     val isDone: Boolean = false,
+    val isFailed: Boolean = false,
 )
 
 internal fun List<WorkInfo>.toScanUiState(): ScanUiState {
     val scanInfo = firstOrNull { ScanWorker.TAG in it.tags }
     val classificationInfo = firstOrNull { ClassificationWorker.TAG in it.tags }
     val isDone = isNotEmpty() && all { it.state == WorkInfo.State.SUCCEEDED }
+    val isFailed = any { it.state == WorkInfo.State.FAILED || it.state == WorkInfo.State.CANCELLED }
 
     if (classificationInfo != null && classificationInfo.state != WorkInfo.State.BLOCKED) {
         return ScanUiState(
@@ -32,6 +34,7 @@ internal fun List<WorkInfo>.toScanUiState(): ScanUiState {
             filesClassified = classificationInfo.progress.getInt(ClassificationWorker.KEY_FILES_CLASSIFIED, 0),
             totalFiles = classificationInfo.progress.getInt(ClassificationWorker.KEY_TOTAL_FILES, 0),
             isDone = isDone,
+            isFailed = isFailed,
         )
     }
 
@@ -48,5 +51,6 @@ internal fun List<WorkInfo>.toScanUiState(): ScanUiState {
         filesHashed = scanInfo?.progress?.getInt(ScanWorker.KEY_FILES_HASHED, 0) ?: 0,
         filesToHash = scanInfo?.progress?.getInt(ScanWorker.KEY_FILES_TO_HASH, 0) ?: 0,
         isDone = isDone,
+        isFailed = isFailed,
     )
 }

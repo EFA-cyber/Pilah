@@ -31,6 +31,7 @@ fun PilahNavHost(navController: NavHostController = rememberNavController()) {
         composable(PilahDestination.SCAN.route) {
             ScanScreen(
                 onLanjut = { navController.navigate(PilahDestination.REVIEW.route) },
+                onBatal = { navController.popBackStack() },
             )
         }
         composable(PilahDestination.REVIEW.route) {
