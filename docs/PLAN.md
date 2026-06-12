@@ -72,7 +72,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 | Fase | Fokus | Estimasi | Status |
 |---|---|---|---|
 | 0 | Setup Proyek & Fondasi | ~1 minggu | ✅ Selesai (scaffold) |
-| 1 | Smart Scan | ~2 minggu | |
+| 1 | Smart Scan | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu | |
 | 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | |
 | 4 | Auto-Foldering & Karantina | ~2 minggu | |
@@ -91,12 +91,26 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 
 > **Catatan:** build belum diverifikasi di sandbox ini karena tidak ada Android SDK terpasang dan repository Maven Google (`dl.google.com`, sumber Android Gradle Plugin/AndroidX) diblokir oleh kebijakan jaringan. Verifikasi `./gradlew assembleDebug` perlu dijalankan di Android Studio / CI (sudah disiapkan di GitHub Actions).
 
-### Fase 1 — Smart Scan
+### Fase 1 — Smart Scan ✅
 - Layar onboarding: edukasi kebutuhan akses penuh storage + request `MANAGE_EXTERNAL_STORAGE`.
 - File scanner via foreground service / WorkManager expedited job: traverse internal storage + SD card (MediaStore + File API).
 - Kumpulkan metadata: path, name, type, size, created_at, last_opened, source folder (deteksi pola path WhatsApp/Download/DCIM).
 - Hitung hash SHA-256 per file secara batch (throttled agar hemat baterai).
 - Simpan ke `files`. UI progres real-time (jumlah file, estimasi waktu, tombol batal).
+
+**Implementasi:**
+- `core/permissions`: `StoragePermissions` — deteksi `MANAGE_EXTERNAL_STORAGE` (Android 11+) vs izin runtime legacy, plus intent ke halaman Pengaturan.
+- `app/.../ui/OnboardingScreen.kt`: alur permintaan izin nyata (redirect Settings utk API 30+, dialog runtime utk API <30), re-cek status saat `ON_RESUME`.
+- `feature/scan`:
+  - `FileSystemScanner` — telusuri seluruh volume penyimpanan (internal + SD card via `getExternalFilesDirs`), kumpulkan `FileItem` (path/name/type/size/createdAt), lewati berkas/folder tersembunyi.
+  - `FileHasher` — SHA-256 streaming per file untuk deteksi duplikat (Fase 2).
+  - `ScanRepository`/`DefaultScanRepository` — orkestrasi fase `SCANNING` → `HASHING` → `DONE`, upsert ke `FileDao`, emit `ScanProgress` real-time.
+  - `ScanWorker` (`@HiltWorker`, `CoroutineWorker`) — jalankan scan di background, `setProgress` per langkah.
+  - `ScanViewModel` — enqueue `OneTimeWorkRequest` unik, observe `WorkInfo` via `getWorkInfosForUniqueWorkFlow`.
+  - `ui/ScanScreen.kt` — progres real-time (spinner saat scanning, progress bar saat hashing, tombol Batal/Lanjut).
+- `app/.../PilahApplication.kt` mengimplementasikan `Configuration.Provider` (HiltWorkerFactory) untuk WorkManager + Hilt.
+
+> **Catatan:** `last_opened` tetap `null` (lihat keterbatasan §6); deteksi pola folder sumber (WhatsApp/Download/DCIM) & throttling hashing berbasis baterai akan disempurnakan bersamaan rule engine di Fase 2. Build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0) — perlu dijalankan di Android Studio/CI.
 
 ### Fase 2 — Klasifikasi Lokal (Rule Engine)
 Skor kepentingan 0–100 dihitung dari sinyal berbobot:

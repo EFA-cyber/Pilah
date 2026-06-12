@@ -9,12 +9,12 @@ import id.pilah.app.ui.DashboardScreen
 import id.pilah.app.ui.OnboardingScreen
 import id.pilah.app.ui.QuarantineScreen
 import id.pilah.app.ui.ReviewScreen
-import id.pilah.app.ui.ScanScreen
+import id.pilah.feature.scan.ui.ScanScreen
 
 /**
  * Graf navigasi alur utama PILAH:
  * Onboarding -> Pindai -> Tinjau Hasil -> Dashboard -> Karantina (PRD §4).
- * Setiap layar adalah placeholder yang akan diisi pada fase masing-masing.
+ * Tinjau Hasil, Dashboard, dan Karantina masih placeholder, akan diisi pada fase masing-masing.
  */
 @Composable
 fun PilahNavHost(navController: NavHostController = rememberNavController()) {
