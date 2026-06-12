@@ -29,9 +29,10 @@ class DefaultClassificationRepository @Inject constructor(
         val files = fileDao.observeAll().first()
         val weights = ruleWeightsRepository.weights().first()
         val now = Instant.now()
-        val context = buildContext(files, now)
 
         emit(ClassificationProgress(totalFiles = files.size))
+
+        val context = buildContext(files, now)
 
         files.forEachIndexed { index, entity ->
             val result = ruleEngine.classify(entity.toDomain(), context, weights)
