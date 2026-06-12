@@ -1,4 +1,4 @@
-package id.pilah.feature.review
+package id.pilah.core.common
 
 import id.pilah.core.model.FileCategory
 import id.pilah.core.model.FileItem

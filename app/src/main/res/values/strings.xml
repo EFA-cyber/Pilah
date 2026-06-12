@@ -9,9 +9,4 @@
     <string name="screen_dashboard_title">Dashboard</string>
     <string name="screen_dashboard_body">Visualisasi penyimpanan akan tersedia di Fase 5.</string>
     <string name="screen_dashboard_quarantine_cta">Buka Karantina</string>
-
-    <string name="screen_quarantine_title">Karantina</string>
-    <string name="screen_quarantine_body">Daftar file karantina akan tersedia di Fase 4.</string>
-
-    <string name="action_back">Kembali</string>
 </resources>

@@ -5,6 +5,7 @@ enum class PilahDestination(val route: String) {
     ONBOARDING("onboarding"),
     SCAN("scan"),
     REVIEW("review"),
+    FOLDERING("foldering"),
     DASHBOARD("dashboard"),
     QUARANTINE("quarantine"),
 }

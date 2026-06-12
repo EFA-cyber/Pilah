@@ -75,7 +75,7 @@ Relasi via `@Relation`/`@Embedded` Room (mis. `FileWithLatestClassification`).
 | 1 | Smart Scan | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 2 | Klasifikasi Lokal (Rule Engine) | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 3 | Tinjau & Koreksi (Review UI) | ~2 minggu | ✅ Selesai (implementasi awal) |
-| 4 | Auto-Foldering & Karantina | ~2 minggu | |
+| 4 | Auto-Foldering & Karantina | ~2 minggu | ✅ Selesai (implementasi awal) |
 | 5 | Dashboard Penyimpanan | ~1 minggu | |
 | 6 | Analisis Mendalam (Cloud AI) — opsional | ~2–3 minggu | |
 | 7 | Testing, Performa, Rilis | ~2 minggu | |
@@ -167,7 +167,7 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 
 > **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0/1/2). File berkategori **Ambigu** belum ditampilkan di tumpukan manapun — akan ditangani Analisis Mendalam (Fase 6).
 
-### Fase 4 — Auto-Foldering & Karantina
+### Fase 4 — Auto-Foldering & Karantina ✅
 - Usulan struktur folder: `Dokumen Penting/`, `Foto Kenangan/`, `Kerja & Bisnis/`, `Arsip/`, `Karantina/` (root dapat dikustomisasi).
 - Layar "Sebelum → Sesudah": pohon direktori awal vs hasil, ringkasan jumlah & ukuran per kategori.
 - Tombol "Rapikan Sekarang": eksekusi pindah file (SAF/File API), setiap operasi dicatat ke `actions`.
@@ -175,6 +175,27 @@ Skor kepentingan 0–100 dihitung dari sinyal berbobot:
 - Undo: balik `from_path`/`to_path` dari `actions` terakhir.
 - WorkManager periodic (harian): purge entry `quarantine` yang `purge_after < now` & `status = ACTIVE`.
 - Layar Karantina: daftar file + sisa hari, tombol "Pulihkan" / "Hapus Sekarang".
+
+**Implementasi:**
+- `core/common` — `FolderSuggester` (dipindah dari `feature/review`, kini dipakai bersama oleh `feature/review`, `feature/foldering`) dan `FileMover` baru (`object` stateless: `renameTo` dulu, fallback `copyTo` + `delete` lintas-volume); `core/common` kini bergantung pada `core:model`.
+- `feature/foldering` (modul baru):
+  - `VolumeRootResolver` — resolusi root volume penyimpanan dari path absolut (`/storage/emulated/0/...` atau `/storage/<UUID>/...`, fallback ke `/storage/emulated/0`).
+  - `FolderingPlanner` — fungsi murni `plan(files, categories) -> FolderingPlan`: menghitung `targetPath` via `FolderSuggester` + `VolumeRootResolver`, mengecualikan file tanpa kategori, kategori **Ambigu**, atau file yang sudah berada di `targetPath` (idempoten); `FolderingPlan` berisi `items` (per-file) dan `summaries` (agregat jumlah & ukuran per `targetFolder`).
+  - `FolderingRepository`/`DefaultFolderingRepository` — `observePlan()` menggabungkan `files`, klasifikasi terbaru, `user_corrections`, dan entri `quarantine` `ACTIVE` (kategori efektif sama seperti Fase 3, file yang sudah di Karantina dikecualikan dari rencana); `execute(plan)` memindahkan setiap file via `FileMover`, memperbarui `FileEntity.path`, mencatat `ActionEntity` (`MOVE` atau `QUARANTINE`), dan untuk kategori **Layak Dihapus** menambah `QuarantineEntity` (`purge_after = now + 30 hari`, `status = ACTIVE`); emit `FolderingProgress` per file.
+  - `FolderingWorker` (`@HiltWorker`, `CoroutineWorker`, tag `"foldering"`) — jalankan `execute(plan)` di background, `setProgress` per file, `Result.success` membawa hitungan akhir (progress dibersihkan saat selesai).
+  - `FolderingViewModel` — `plan: StateFlow<FolderingPlan>`, `executionState: StateFlow<FolderingUiState>` (dari `WorkInfo`), `rapikanSekarang()` meng-enqueue `FolderingWorker`.
+  - `ui/FolderingScreen.kt` — layar "Sebelum -> Sesudah": daftar ringkasan folder tujuan (jumlah file & ukuran), progress bar saat berjalan, pesan selesai, tombol "Rapikan Sekarang" / "Lanjut" sesuai status.
+  - Unit test `VolumeRootResolverTest` & `FolderingPlannerTest` — resolusi root internal/SD card/fallback, serta seluruh cabang perencanaan (kategori Penting/Layak Dihapus/Ambigu, file sudah di tujuan, agregasi ringkasan, SD card).
+- `feature/quarantine` (modul baru):
+  - `QuarantineItem` (gabungan `FileItem` + `QuarantineEntry` + `daysRemaining`) dan `QuarantineDaysCalculator` (`Duration.between(now, purgeAfter).toDays().coerceAtLeast(0)`).
+  - `QuarantineRepository`/`DefaultQuarantineRepository` — `observeActive()` menggabungkan entri `quarantine` `ACTIVE` dengan `files`, urut berdasarkan sisa hari; `restore()` mengambil `from_path` asal dari `actions` terakhir (`ActionDao.getLastForFile`), memindahkan file kembali via `FileMover`, memperbarui `FileEntity.path`, mencatat `RESTORE`, set status `RESTORED`; `deleteNow()`/`purgeExpired()` berbagi helper `purge()` (hapus file, catat `PURGE`, set status `PURGED`).
+  - `QuarantinePurgeWorker` (`@HiltWorker`, `CoroutineWorker`, `WORK_NAME = "quarantine_auto_purge"`) — jalankan `purgeExpired()` harian, di-enqueue via `enqueueUniquePeriodicWork` (`ExistingPeriodicWorkPolicy.KEEP`) di `PilahApplication.onCreate()`.
+  - `QuarantineViewModel` — `items: StateFlow<List<QuarantineItem>>`, `restore()`/`deleteNow()`.
+  - `ui/QuarantineScreen.kt` — daftar file karantina (ukuran, sisa hari), tombol "Pulihkan" / "Hapus Sekarang" (dengan dialog konfirmasi penghapusan permanen), status kosong.
+- `feature/review`: `DefaultReviewRepository.observeReviewItems()` kini juga mengecualikan file dengan entri `quarantine` `ACTIVE` dari kedua tumpukan (selaras dengan `feature/foldering`).
+- `app`: `PilahNavHost` menyisipkan rute `FOLDERING` antara Review dan Dashboard (`Onboarding → Pindai → Tinjau Hasil → Sebelum/Sesudah → Dashboard → Karantina`); placeholder lama `app/.../ui/QuarantineScreen.kt` (beserta string resource `screen_quarantine_*`/`action_back`) dihapus dan diganti `feature/quarantine`'s `QuarantineScreen`.
+
+> **Catatan:** build tetap belum diverifikasi di sandbox ini (lihat catatan Fase 0/1/2/3). `FileMover` belum memakai Storage Access Framework — saat ini hanya `java.io.File` (`renameTo`/`copyTo`), cukup untuk volume yang dapat diakses via `MANAGE_EXTERNAL_STORAGE`; SAF dapat ditambahkan jika diperlukan untuk akses lintas-app.
 
 ### Fase 5 — Dashboard Penyimpanan
 - Pie/bar chart penggunaan storage per kategori (Vico).

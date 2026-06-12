@@ -1,12 +1,11 @@
-package id.pilah.feature.review
+package id.pilah.core.common
 
 import id.pilah.core.model.FileCategory
 import id.pilah.core.model.FileItem
 
 /**
  * Usulan folder tujuan auto-foldering (PRD §3.3) berdasarkan kategori efektif & jenis file.
- * Heuristik awal untuk layar Tinjau Hasil; struktur folder final & eksekusi pindah file
- * baru ditentukan pada Fase 4.
+ * Dipakai layar Tinjau Hasil (Fase 3) dan rencana Rapikan Sekarang (Fase 4).
  */
 object FolderSuggester {
 

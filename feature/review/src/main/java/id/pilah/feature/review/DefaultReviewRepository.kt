@@ -1,13 +1,16 @@
 package id.pilah.feature.review
 
 import id.pilah.core.common.DispatcherProvider
+import id.pilah.core.common.FolderSuggester
 import id.pilah.core.database.dao.ClassificationDao
 import id.pilah.core.database.dao.FileDao
+import id.pilah.core.database.dao.QuarantineDao
 import id.pilah.core.database.dao.UserCorrectionDao
 import id.pilah.core.database.model.toDomain
 import id.pilah.core.database.model.toEntity
 import id.pilah.core.model.Classification
 import id.pilah.core.model.FileCategory
+import id.pilah.core.model.QuarantineStatus
 import id.pilah.core.model.UserCorrection
 import java.time.Instant
 import javax.inject.Inject
@@ -20,6 +23,7 @@ class DefaultReviewRepository @Inject constructor(
     private val fileDao: FileDao,
     private val classificationDao: ClassificationDao,
     private val userCorrectionDao: UserCorrectionDao,
+    private val quarantineDao: QuarantineDao,
     private val ruleWeightsAdjuster: RuleWeightsAdjuster,
     private val dispatchers: DispatcherProvider,
 ) : ReviewRepository {
@@ -47,11 +51,14 @@ class DefaultReviewRepository @Inject constructor(
         fileDao.observeAll(),
         classificationDao.observeLatestPerFile(),
         userCorrectionDao.observeAll(),
-    ) { files, classifications, corrections ->
+        quarantineDao.observeByStatus(QuarantineStatus.ACTIVE),
+    ) { files, classifications, corrections, quarantined ->
         val classificationByFileId = classifications.associateBy { it.fileId }
         val latestCorrectionByFileId = corrections.groupBy { it.fileId }.mapValues { it.value.first() }
+        val quarantinedFileIds = quarantined.map { it.fileId }.toSet()
 
         val items = files.mapNotNull { file ->
+            if (file.id in quarantinedFileIds) return@mapNotNull null
             val classification = classificationByFileId[file.id]?.toDomain() ?: return@mapNotNull null
             val effectiveCategory = latestCorrectionByFileId[file.id]?.userCategory ?: classification.category
             if (effectiveCategory != category) return@mapNotNull null

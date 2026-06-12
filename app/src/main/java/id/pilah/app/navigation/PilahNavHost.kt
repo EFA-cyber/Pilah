@@ -7,14 +7,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import id.pilah.app.ui.DashboardScreen
 import id.pilah.app.ui.OnboardingScreen
-import id.pilah.app.ui.QuarantineScreen
+import id.pilah.feature.foldering.ui.FolderingScreen
+import id.pilah.feature.quarantine.ui.QuarantineScreen
 import id.pilah.feature.review.ui.ReviewScreen
 import id.pilah.feature.scan.ui.ScanScreen
 
 /**
  * Graf navigasi alur utama PILAH:
- * Onboarding -> Pindai -> Tinjau Hasil -> Dashboard -> Karantina (PRD §4).
- * Dashboard dan Karantina masih placeholder, akan diisi pada fase masing-masing.
+ * Onboarding -> Pindai -> Tinjau Hasil -> Sebelum/Sesudah -> Dashboard -> Karantina (PRD §4).
+ * Dashboard masih placeholder, akan diisi pada fase berikutnya.
  */
 @Composable
 fun PilahNavHost(navController: NavHostController = rememberNavController()) {
@@ -34,6 +35,11 @@ fun PilahNavHost(navController: NavHostController = rememberNavController()) {
         }
         composable(PilahDestination.REVIEW.route) {
             ReviewScreen(
+                onLanjut = { navController.navigate(PilahDestination.FOLDERING.route) },
+            )
+        }
+        composable(PilahDestination.FOLDERING.route) {
+            FolderingScreen(
                 onLanjut = { navController.navigate(PilahDestination.DASHBOARD.route) },
             )
         }
