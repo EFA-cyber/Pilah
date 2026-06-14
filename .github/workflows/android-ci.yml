@@ -27,6 +27,9 @@ jobs:
       - name: Unit test
         run: ./gradlew testDebugUnitTest
 
+      - name: Build & test CLI
+        run: ./gradlew :cli:test :cli:distZip
+
       - name: Assemble debug
         run: ./gradlew assembleDebug
 
@@ -35,4 +38,11 @@ jobs:
         with:
           name: pilah-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      - name: Upload CLI distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilah-cli
+          path: cli/build/distributions/*.zip
           retention-days: 14
