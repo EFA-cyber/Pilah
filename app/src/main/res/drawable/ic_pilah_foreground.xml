@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Folder body (white, safe zone 18–90) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M22,46
+            L22,76 C22,79.3 24.7,82 28,82
+            L80,82 C83.3,82 86,79.3 86,76
+            L86,46 C86,42.7 83.3,40 80,40
+            L54,40 C52.6,40 51.3,39.4 50.4,38.3
+            L47.6,34.7 C46.7,33.6 45.4,33 44,33
+            L28,33 C24.7,33 22,35.7 22,39
+            Z" />
+
+    <!-- Checkmark inside folder (brand green, slightly lighter) -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#66BB6A"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M37,58 L50,71 L71,47" />
+
+</vector>

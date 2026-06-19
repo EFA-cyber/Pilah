@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /** Pilihan folder yang dapat dipilih pengguna sebelum memulai Smart Scan. */
-data class FolderOption(val label: String, val subDir: String?)
+data class FolderOption(val label: String, val subDir: String?, val emoji: String, val description: String)
 
 @HiltViewModel
 class ScanViewModel @Inject constructor(
@@ -31,12 +31,12 @@ class ScanViewModel @Inject constructor(
 
     /** Daftar folder yang bisa dipilih. null berarti pindai semua penyimpanan. */
     val folderOptions: List<FolderOption> = listOf(
-        FolderOption("Semua File", null),
-        FolderOption("Unduhan", "Download"),
-        FolderOption("Foto & Video (DCIM)", "DCIM"),
-        FolderOption("Dokumen", "Documents"),
-        FolderOption("Musik", "Music"),
-        FolderOption("Video", "Movies"),
+        FolderOption("Semua File", null, "🗂️", "Pindai seluruh penyimpanan"),
+        FolderOption("Unduhan", "Download", "📥", "File yang diunduh dari internet"),
+        FolderOption("Foto & Video", "DCIM", "📷", "Foto kamera dan video"),
+        FolderOption("Dokumen", "Documents", "📄", "Dokumen, PDF, dan teks"),
+        FolderOption("Musik", "Music", "🎵", "Lagu dan file audio"),
+        FolderOption("Video", "Movies", "🎬", "Film dan video"),
     )
 
     private val _isPickingFolder = MutableStateFlow(true)
