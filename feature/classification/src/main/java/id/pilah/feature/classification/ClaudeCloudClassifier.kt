@@ -46,7 +46,7 @@ internal object ClaudeClassificationPrompt {
     fun build(items: List<CloudClassificationInput>): String {
         val files = items.joinToString(separator = "\n") { item ->
             val snippet = item.textSnippet.replace("\"", "'").take(MAX_SNIPPET_CHARS)
-            "- file_id: ${item.fileId}, nama: \"${item.fileName}\", konteks: \"$snippet\""
+            "- file_id: ${item.fileId}, nama: \"${item.fileName}\", cuplikan: \"$snippet\""
         }
 
         return """
