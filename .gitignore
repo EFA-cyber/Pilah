@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+
+# Release signing (lihat keystore.properties.example)
+keystore.properties
+*.jks
+*.keystore
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.kotlin/
+
+# Room schemas (generated)
+core/database/schemas/
+
+# OS
+.DS_Store

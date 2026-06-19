@@ -1,0 +1,55 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Lint
+        run: ./gradlew lint
+
+      - name: Unit test
+        run: ./gradlew testDebugUnitTest
+
+      - name: Build & test CLI and Desktop apps
+        run: ./gradlew :cli:test :cli:distZip :desktop:distZip
+
+      - name: Assemble debug
+        run: ./gradlew assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilah-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      - name: Upload CLI distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilah-cli
+          path: cli/build/distributions/*.zip
+          retention-days: 14
+
+      - name: Upload Desktop app
+        uses: actions/upload-artifact@v4
+        with:
+          name: pilah-desktop
+          path: desktop/build/distributions/*.zip
+          retention-days: 14
