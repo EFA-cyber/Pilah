@@ -17,12 +17,12 @@ class DefaultScanRepository @Inject constructor(
     private val dispatchers: DispatcherProvider,
 ) : ScanRepository {
 
-    override fun scan(): Flow<ScanProgress> = flow {
+    override fun scan(subDir: String?): Flow<ScanProgress> = flow {
         var filesScanned = 0
         emit(ScanProgress(phase = ScanPhase.SCANNING))
 
         val scannedIds = mutableListOf<Long>()
-        scanner.scan().collect { fileItem ->
+        scanner.scan(subDir).collect { fileItem ->
             scannedIds += upsertAndGetId(fileItem)
             filesScanned++
             emit(ScanProgress(phase = ScanPhase.SCANNING, filesScanned = filesScanned))

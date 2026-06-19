@@ -17,7 +17,8 @@ class ScanWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        scanRepository.scan().collect { progress -> setProgress(progress.toWorkData()) }
+        val subDir = inputData.getString(KEY_SUB_DIR)
+        scanRepository.scan(subDir).collect { progress -> setProgress(progress.toWorkData()) }
         return Result.success()
     }
 
@@ -35,5 +36,6 @@ class ScanWorker @AssistedInject constructor(
         const val KEY_FILES_SCANNED = "files_scanned"
         const val KEY_FILES_HASHED = "files_hashed"
         const val KEY_FILES_TO_HASH = "files_to_hash"
+        const val KEY_SUB_DIR = "sub_dir"
     }
 }

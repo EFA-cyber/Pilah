@@ -41,25 +41,33 @@ class ClaudeCloudClassifier @Inject constructor(
     }
 }
 
-/** Susun prompt batch berbahasa Indonesia, meminta balasan JSON array murni. */
+/** Susun prompt batch berbahasa Indonesia yang cerdas, meminta balasan JSON array murni. */
 internal object ClaudeClassificationPrompt {
     fun build(items: List<CloudClassificationInput>): String {
         val files = items.joinToString(separator = "\n") { item ->
             val snippet = item.textSnippet.replace("\"", "'").take(MAX_SNIPPET_CHARS)
-            "- file_id: ${item.fileId}, nama: \"${item.fileName}\", cuplikan: \"$snippet\""
+            "- file_id: ${item.fileId}, nama: \"${item.fileName}\", konteks: \"$snippet\""
         }
 
         return """
-            Anda membantu pengguna ponsel Android merapikan penyimpanan. Untuk setiap file di bawah,
-            nilai tingkat kepentingannya (0-100), tentukan kategori berdasarkan ambang batas
-            (skor >= 70 -> PENTING, skor <= 30 -> LAYAK_DIHAPUS, selainnya -> AMBIGU),
-            dan berikan alasan singkat dalam Bahasa Indonesia.
+            Anda adalah asisten AI cerdas untuk aplikasi Pilah — alat perapian file Android pengguna Indonesia.
+            Analisis setiap file dan tentukan tingkat kepentingannya berdasarkan nama, tipe, dan konteksnya.
+
+            Panduan klasifikasi untuk pengguna Indonesia:
+            - PENTING (skor >= 70): Dokumen identitas & legal (KTP, ijazah, NPWP, SIM, akta kelahiran, sertifikat, kontrak, perjanjian, SK), foto kenangan berharga (wisuda, pernikahan, ulang tahun, liburan keluarga), file kerja/bisnis aktif (laporan, proposal, invoice, presentasi), dokumen keuangan (rekening, bukti transfer, tagihan penting).
+            - LAYAK_DIHAPUS (skor <= 30): Screenshot lama tidak berguna, file duplikat, unduhan yang sudah digunakan/tidak diperlukan lagi, file sementara/cache/thumbnail, APK yang sudah terinstal, video iklan/promosi.
+            - AMBIGU (skor 31-69): File yang tujuannya tidak dapat dipastikan dari nama dan konteks yang tersedia.
+
+            Petunjuk tambahan:
+            - Jika konteks berisi "Ukuran/Umur/Folder": gunakan usia dan folder asal sebagai sinyal kuat. File tua (>60 hari) di folder Download cenderung LAYAK_DIHAPUS; file di DCIM/Camera cenderung kenangan berharga.
+            - Nama file dengan pola tanggal (YYYYMMDD_, IMG_, VID_, Screenshot_) beri konteks penting.
+            - Ukuran file besar (>10 MB) di folder yang tepat cenderung lebih PENTING.
 
             Daftar file:
             $files
 
             Balas HANYA dengan JSON array tanpa teks atau markdown lain, dengan format persis:
-            [{"file_id": <id>, "importance_score": <0-100>, "category": "PENTING|LAYAK_DIHAPUS|AMBIGU", "reason": "<alasan singkat>"}]
+            [{"file_id": <id>, "importance_score": <0-100>, "category": "PENTING|LAYAK_DIHAPUS|AMBIGU", "reason": "<alasan singkat dalam Bahasa Indonesia, maks 15 kata>"}]
         """.trimIndent()
     }
 

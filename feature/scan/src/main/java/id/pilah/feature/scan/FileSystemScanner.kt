@@ -22,10 +22,14 @@ class FileSystemScanner @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
 
-    /** Memancarkan satu [FileItem] per berkas yang ditemukan di seluruh [storageRoots]. */
-    fun scan(): Flow<FileItem> = flow {
+    /**
+     * Memancarkan satu [FileItem] per berkas yang ditemukan.
+     * Jika [subDir] diisi (mis. "Download", "DCIM"), hanya subfolder itu yang dipindai di setiap volume.
+     */
+    fun scan(subDir: String? = null): Flow<FileItem> = flow {
         for (root in storageRoots()) {
-            emitFilesIn(root)
+            val startDir = if (subDir != null) File(root, subDir) else root
+            if (startDir.exists() && startDir.isDirectory) emitFilesIn(startDir)
         }
     }
 

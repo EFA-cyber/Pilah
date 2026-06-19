@@ -9,8 +9,11 @@ import id.pilah.core.datastore.ApiKeyRepository
 import id.pilah.core.datastore.UserPreferencesRepository
 import id.pilah.core.model.Classification
 import id.pilah.core.model.FileCategory
+import id.pilah.core.model.FileItem
 import id.pilah.core.model.PrivacyMode
+import java.io.File
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
@@ -44,15 +47,21 @@ class DefaultDeepAnalysisRepository @Inject constructor(
             val latestCategoryByFileId = classificationDao.observeLatestPerFile().first()
                 .associate { it.fileId to it.category }
 
+            // AI menganalisis semua file Ambigu — termasuk yang tidak bisa diekstrak teksnya,
+            // menggunakan metadata (ukuran, umur, folder) sebagai konteks klasifikasi.
             val candidates = files.filter { file ->
-                latestCategoryByFileId[file.id] == FileCategory.AMBIGU && textExtractor.supports(file.type)
+                latestCategoryByFileId[file.id] == FileCategory.AMBIGU
             }
             if (candidates.isEmpty()) return@runCatching DeepAnalysisResult()
 
-            val inputs = candidates.mapNotNull { file ->
-                textExtractor.extract(file.path, file.type, MAX_SNIPPET_CHARS)?.let { snippet ->
-                    CloudClassificationInput(fileId = file.id, fileName = file.name, textSnippet = snippet)
+            val inputs = candidates.map { file ->
+                val snippet = if (textExtractor.supports(file.type)) {
+                    textExtractor.extract(file.path, file.type, MAX_SNIPPET_CHARS)
+                        ?: buildMetadataContext(file)
+                } else {
+                    buildMetadataContext(file)
                 }
+                CloudClassificationInput(fileId = file.id, fileName = file.name, textSnippet = snippet)
             }
             if (inputs.isEmpty()) return@runCatching DeepAnalysisResult()
 
@@ -76,6 +85,14 @@ class DefaultDeepAnalysisRepository @Inject constructor(
             if (error is CancellationException) throw error
             DeepAnalysisResult(skipped = true)
         }
+    }
+
+    /** Bangun konteks metadata sebagai pengganti cuplikan teks untuk file non-teks. */
+    private fun buildMetadataContext(file: FileItem): String {
+        val ageInDays = ChronoUnit.DAYS.between(file.createdAt, Instant.now())
+        val sizeMb = "%.1f MB".format(file.sizeBytes / 1_048_576.0)
+        val folderName = File(file.path).parentFile?.name ?: "-"
+        return "Ukuran: $sizeMb | Umur: $ageInDays hari | Folder: $folderName"
     }
 
     private companion object {
